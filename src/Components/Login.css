@@ -1,0 +1,109 @@
+.login-bg {
+  min-height: 95vh;
+  min-width: 57vw;
+  background: linear-gradient(130deg, #2961ba 50%, #5394e5 70%);
+  display: flex;
+  box-shadow: 0 10px 32px 0 rgba(1, 24, 55, 0.3);
+  align-items: center;
+  justify-content: center;
+}
+
+.login-container {
+  background: #fff;
+  padding: 2.4rem 2.7rem;
+  border-radius: 1.5rem;
+  box-shadow: 0 10px 32px 0 rgba(59, 130, 246, 0.2);
+  max-width: 400px;
+  width: 100vw;
+  min-width: none;;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid #e0e7ff;
+}
+
+.login-title {
+  color: #2563eb;
+ font-size: 3rem;
+  font-weight: 800;
+  margin-bottom: 1rem;
+  margin-top: 0.7rem;
+  text-align: center;
+}
+
+.login-label {
+  color: #2563eb;
+  font-weight: 600;
+  font-size: 1.4rem;
+  margin-bottom: 0.5rem;
+  display: block;
+}
+
+.login-input {
+  width: 100%;
+  padding: 0.75rem 1rem;
+  font-family: 'Times New Roman', Times, serif;
+  border: 1.5px solid #93c5fd;
+  border-radius: 0.75rem;
+  margin-bottom: 1.6rem;
+  font-size: 1.8rem;
+  transition: border-color 0.2s;
+}
+
+.login-input:focus {
+  border-color: #2563eb;
+  outline: none;
+}
+
+.login-btn {
+  width: 100%;
+  background: #2563eb;
+  color: #fff;
+  padding: 0.75rem 0;
+  border: none;
+  border-radius: 0.75rem;
+  font-size: 1.1rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.login-btn:hover {
+  background: #011857;
+}
+.login-image-container {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  margin-bottom: 0.8rem;
+  height: 170px;
+  width: 185px;
+  padding-left: 9rem;
+  padding-right: 5rem;
+  padding-bottom: 2rem;
+  padding-top: 1.5rem;
+}
+.login-logo {
+  font-size: 2.5rem;
+  color: #020210;
+  font-style: bold ;
+  margin-top: 0.4rem;
+  font-weight: 9000;
+  text-align: center;
+  font-family: 'Times New Roman', Times, serif;
+  letter-spacing: 0.9px;
+}
+.background-image {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background-repeat: repeat;
+  background-position: 360%;
+  background-color: #77bfe9;
+  background-size: 300px 200px;
+  opacity: 0.4;
+  z-index: -1;
+}
