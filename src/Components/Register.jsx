@@ -4,10 +4,11 @@ import "./Register.css";
 import { useRef } from "react";
 import extraImg1 from "../assets/logo-zanzibar.png";
 import extraImg2 from "../assets/zafiri.png";
+import { API_BASE } from "../config";
 
 const departments = [
   "Administration and Human Resources",
-  "Finance and Marketing",
+   "Finance and Marketing",
   "ICT",
   "Labaratory and Experiment",
   "Research and Analysis",
@@ -20,7 +21,7 @@ const securityQuestions = [
   "Which city were you born in?",
 ];
 
-export default function Register() {
+export default function Register({ onBackToLogin }) {
   const popupRef = useRef(null);
   const [form, setForm] = useState({
     username: "",
@@ -48,6 +49,9 @@ export default function Register() {
   const [errors, setErrors] = useState({});
   const [submitted, setSubmitted] = useState(false);
   const [showPopup, setShowPopup] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [successMessage, setSuccessMessage] = useState('');
+  const [errorMessage, setErrorMessage] = useState('');
 
   const handleChange = (e) => {
     const { name, value, type, checked, files } = e.target;
@@ -87,9 +91,9 @@ export default function Register() {
   }
     if (!form.gender) newErrors.gender = "Gender is required";
     if (!form.department) newErrors.department = "Department is required";
-    if (!form.jobTitle) newErrors.position = "Job position is required";
+    if (!form.position) newErrors.position = "Job position is required";
     if (!form.employeeNo) newErrors.employeeNo = "Employee number is required";
-    if (!form.email || !form.email.endsWith("@Zafiri.go.tz")) newErrors.email = "Valid company email is required (@Zafiri.go.tz)";
+    if (!form.email || !form.email.toLowerCase().endsWith("@zafiri.go.tz")) newErrors.email = "Valid company email is required (@zafiri.go.tz)";
     if (!form.phone || form.phone.length < 7) newErrors.phone = "Phone is required";
     if (!form.password) newErrors.password = "Password is required";
     else if (!/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?]).{8,}$/.test(form.password)) newErrors.password = "Password must be 8+ chars, include upper, lower, number, symbol";
@@ -100,15 +104,110 @@ export default function Register() {
     if (!form.confirm) newErrors.confirm = "You must confirm information is correct";
     return newErrors;
   };
+  // Helper to read csrftoken cookie (in case backend enforces CSRF later)
+  const getCookie = (name) => {
+    if (typeof document === 'undefined') return null;
+    const value = `; ${document.cookie}`;
+    const parts = value.split(`; ${name}=`);
+    if (parts.length === 2) return parts.pop().split(';').shift();
+    return null;
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setErrorMessage('');
+    setSuccessMessage('');
+    
     const validationErrors = validate();
     setErrors(validationErrors);
+    
     if (Object.keys(validationErrors).length === 0) {
-      // const hashedPassword = await bcrypt.hash(form.password, 10);
-      setSubmitted(true);
-      setShowPopup(true);
-      setTimeout(() => setShowPopup(false), 3000); // Hide popup after 3 seconds
+      setLoading(true);
+      
+      try {
+        // Prepare data for API (no case mangling of department; send raw)
+        const userData = {
+          username: form.username,
+          password: form.password,
+          email: form.email,
+          firstName: form.firstName,
+          middleName: form.secondName,
+          lastName: form.lastName,
+          employeeNo: form.employeeNo,
+          department: form.department,            // keep as selected
+          position: form.position,
+          phone: form.phone,
+          gender: form.gender ? form.gender.charAt(0) : '', // 'M' or 'F'
+          dateOfBirth: `${form.dobYear}-${String(form.dobMonth).padStart(2, '0')}-${String(form.dobDay).padStart(2, '0')}`,
+          securityQuestion: form.securityQuestion,
+          securityAnswer: form.securityAnswer,
+        };
+        console.log("Submitting registration payload:", userData);
+        const csrfToken = getCookie('csrftoken');
+
+        const response = await fetch(`${API_BASE}/api/create-user/`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(csrfToken ? { 'X-CSRFToken': csrfToken } : {})
+          },
+          credentials: 'include',
+          body: JSON.stringify(userData),
+        });
+
+        let data;
+        const text = await response.text();
+        try {
+          data = text ? JSON.parse(text) : {};
+        } catch {
+          data = { error: 'Invalid server response (non-JSON)', raw: text };
+        }
+        console.log("Registration response:", response.status, data);
+
+        if (response.ok) {
+          setSuccessMessage(data.message || 'User registered successfully.');
+          setSubmitted(true);
+          setShowPopup(true);
+          setForm({
+            username: "",
+            firstName: "",
+            secondName: "",
+            lastName: "",
+            dobDay: "",
+            dobMonth: "",
+            dobYear: "",
+            gender: "",
+            department: "",
+            employeeNo: "",
+            position: "",
+            email: "",
+            countryCode: "+255",
+            phone: "",
+            password: "",
+            confirmPassword: "",
+            securityQuestion: "",
+            securityAnswer: "",
+            passport: null,
+            terms: false,
+            confirm: false,
+          });
+          setTimeout(() => {
+            setShowPopup(false);
+            setSuccessMessage('');
+          }, 5000);
+        } else {
+          setErrorMessage(data.error || `Registration failed (status ${response.status}).`);
+          setShowPopup(true);
+          setTimeout(() => setShowPopup(false), 6000);
+        }
+      } catch (error) {
+        console.error('Registration network error:', error);
+        setErrorMessage('Network error. Please check your connection and try again.');
+        setShowPopup(true);
+        setTimeout(() => setShowPopup(false), 6000);
+      } finally {
+        setLoading(false);
+      }
     }
   };
 
@@ -155,7 +254,8 @@ export default function Register() {
                 name="lastName"
                 value={form.lastName}
                 onChange={handleChange}
-                placeholder="Enter your last name"
+                placeholder="Enter your last nabackground: linear-gradient(135deg, #acb8d8 0%, #7a808b 50%, #1E3A8A 100%);
+  position: fixed;me"
               />
               {errors.lastName && <div className="error-message">{errors.lastName}</div>}
             </div>
@@ -243,25 +343,25 @@ export default function Register() {
           <div className="form-group">
             <label className="form-label"> Job Position <span style={{ color: "red" }}>*</span></label>
               <input
-                className={`form-input ${errors.jobTitle ? "error" : ""}`}
-                name="jobTitle"
-                value={form.jobTitle}
+                className={`form-input ${errors.position ? "error" : ""}`}
+                name="position"
+                value={form.position}
                 onChange={handleChange}
                 placeholder="e.g. Researcher,lab scientist, etc."
               />
-            {errors.jobTitle && <div className="error-message">{errors.jobTitle}</div>}
+            {errors.position && <div className="error-message">{errors.position}</div>}
           </div>
 
           <div className="form-group">
             <label className="form-label">  Employee Number <span style={{ color: "red" }}>*</span></label>
               <input
-                className={`form-input ${errors.nida ? "error" : ""}`}
-                name="nida"
-                value={form.nida}
+                className={`form-input ${errors.employeeNo ? "error" : ""}`}
+                name="employeeNo"
+                value={form.employeeNo}
                 onChange={handleChange}
                 placeholder="Enter employee number"
               />
-            {errors.nida && <div className="error-message">{errors.nida}</div>}
+            {errors.employeeNo && <div className="error-message">{errors.employeeNo}</div>}
           </div>
 
           <div className="form-group">
@@ -492,7 +592,7 @@ export default function Register() {
                 value={form.phone.startsWith(form.countryCode) ? form.phone : form.countryCode + form.phone}
                 onChange={handleChange}
                 placeholder="e.g. +255656306692"
-                maxLength={12}
+                maxLength={13}
                 style={{ flex: 1 }}
               />
             </div>
@@ -603,8 +703,16 @@ export default function Register() {
             {errors.confirm && <div className="error-message">{errors.confirm}</div>}
           </div>
 
-          <button type="submit" className="submit-button">
-            Register
+          <button 
+            type="submit" 
+            className="submit-button"
+            disabled={loading}
+            style={{
+              opacity: loading ? 0.7 : 1,
+              cursor: loading ? 'not-allowed' : 'pointer'
+            }}
+          >
+            {loading ? 'Registering...' : 'Register'}
           </button>
 
           <button
@@ -623,7 +731,7 @@ export default function Register() {
                 gender: "",
                 department: "",
                 employeeNo: "",
-                jobTitle: "",
+                position: "",
                 email: "",
                 countryCode: "+255",
                 phone: "",
@@ -645,11 +753,25 @@ export default function Register() {
             type="button"
             className="submit-button"
             style={{ background: "#f1f5f9", color: "#2563eb", marginTop: 8 }}
-            onClick={() => window.location.href = "/login"}
+            onClick={onBackToLogin}
           >
-            Back to Login
+            Back
           </button>
-          {submitted && <div className="success-message">Registration successful!</div>}
+          {submitted && !errorMessage && (
+            <div className="success-message">Registration successful!</div>
+          )}
+          {errorMessage && (
+            <div style={{
+              backgroundColor: '#fee2e2',
+              color: '#dc2626',
+              padding: '12px',
+              borderRadius: '8px',
+              margin: '16px 0',
+              textAlign: 'center'
+            }}>
+              {errorMessage}
+            </div>
+          )}
         </form>
                 {showPopup && (
           <div
@@ -659,7 +781,7 @@ export default function Register() {
               top: "50%",
               left: "50%",
               transform: "translate(-50%, -50%)",
-              background: "#2563eb",
+              background: successMessage ? "#10b981" : "#dc2626",
               color: "#fff",
               padding: "32px 40px",
               borderRadius: "18px",
@@ -668,15 +790,27 @@ export default function Register() {
               display: "flex",
               flexDirection: "column",
               alignItems: "center",
-              fontSize: "1.3rem",
+              fontSize: "1.1rem",
               fontWeight: 600,
+              maxWidth: "400px",
+              textAlign: "center"
             }}
           >
-            <svg width="48" height="48" viewBox="0 0 24 24" fill="none">
-              <circle cx="12" cy="12" r="12" fill="#38bdf8"/>
-              <path d="M7 13l3 3 6-6" stroke="#fff" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"/>
-            </svg>
-            <div style={{ marginTop: 14 }}>User is registered<br />Registered successfully</div>
+            {successMessage ? (
+              <svg width="48" height="48" viewBox="0 0 24 24" fill="none">
+                <circle cx="12" cy="12" r="12" fill="#059669"/>
+                <path d="M7 13l3 3 6-6" stroke="#fff" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+            ) : (
+              <svg width="48" height="48" viewBox="0 0 24 24" fill="none">
+                <circle cx="12" cy="12" r="12" fill="#dc2626"/>
+                <path d="M15 9l-6 6M9 9l6 6" stroke="#fff" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+            )}
+            <div style={{ marginTop: 14 }}>
+              {successMessage || errorMessage}
+            </div>
+            {!successMessage && !errorMessage && <div>Processing...</div>}
           </div>
         )}
       </div>
