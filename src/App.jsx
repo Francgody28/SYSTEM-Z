@@ -3,26 +3,26 @@ import Login from './Components/Login.jsx';
 import Register from './Components/Register.jsx';
 import AdminDashboard from './Components/AdminDashboard.jsx';
 import UserDashboard from './Components/UserDashboard.jsx';
+import UserStats from './Components/UserStats.jsx';
 import { useState, useEffect } from 'react';
 
 function App() {
   const [authData, setAuthData] = useState(null);
   const [showWelcomeMessage, setShowWelcomeMessage] = useState(false);
-  const [currentView, setCurrentView] = useState('dashboard'); // 'dashboard' or 'register'
+
+  // NEW: view state and selected data
+  const [currentView, setCurrentView] = useState('dashboard'); // 'dashboard' | 'register' | 'user-stats'
+  const [selectedUser, setSelectedUser] = useState(null);
+  const [userStatsData, setUserStatsData] = useState(null);
 
   // Check for existing session on app load
   useEffect(() => {
-    const userData = localStorage.getItem('userData');
-    
-    if (userData) {
-      try {
-        const parsedUserData = JSON.parse(userData);
-        setAuthData(parsedUserData);
-      } catch (error) {
-        console.error('Invalid userData in localStorage:', error);
-        localStorage.removeItem('userData');
-      }
-    }
+    // Intentionally do NOT auto-authenticate from localStorage to force the Login page on start.
+    // If you want "remember me" behavior, implement server-side session verification here:
+    // fetch('/api/session/verify', { credentials: 'include' })
+    //   .then(res => res.ok ? res.json() : null)
+    //   .then(sessionUser => { if (sessionUser) setAuthData(sessionUser); })
+    //   .catch(() => {});
   }, []);
 
   const handleLoginSuccess = (loginData) => {
@@ -60,22 +60,32 @@ function App() {
       setAuthData(null);
       setShowWelcomeMessage(false);
       setCurrentView('dashboard');
+      setSelectedUser(null);
+      setUserStatsData(null);
     }
   };
 
-  const handleNavigateToRegister = () => {
+  // NEW: navigate to register (with optional user to edit)
+  const handleNavigateToRegister = (user = null) => {
+    setSelectedUser(user);
     setCurrentView('register');
+  };
+
+  // NEW: navigate to user-stats page (pass snapshot)
+  const handleNavigateToUserStats = (users = []) => {
+    setUserStatsData(users);
+    setCurrentView('user-stats');
   };
 
   const handleBackToDashboard = () => {
     setCurrentView('dashboard');
+    setSelectedUser(null);
+    setUserStatsData(null);
   };
 
-  // Function to determine user role
+  // Function to determine user role (existing logic)
   const getUserRole = (authData) => {
     if (!authData) return 'user';
-    
-    // Check various possible admin indicators
     if (
       authData.user_type === 'admin' ||
       authData.role === 'admin' ||
@@ -86,25 +96,18 @@ function App() {
     ) {
       return 'admin';
     }
-    
     return 'user';
   };
 
-  // Welcome message component
+  // Welcome message component (existing)
   const WelcomeMessage = () => {
     if (!showWelcomeMessage || !authData?.welcome_message) return null;
-    
     return (
       <div style={{
-        position: 'fixed',
-        top: '20px',
-        right: '20px',
-        backgroundColor: '#4ade80',
-        color: 'white',
-        padding: '12px 24px',
-        borderRadius: '8px',
-        boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
-        zIndex: 1000,
+        position: 'fixed', top: '20px', right: '20px',
+        backgroundColor: '#4ade80', color: 'white',
+        padding: '12px 24px', borderRadius: '8px',
+        boxShadow: '0 4px 12px rgba(0,0,0,0.15)', zIndex: 1000,
         animation: 'slideIn 0.3s ease-out'
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -135,22 +138,36 @@ function App() {
       {authData ? (
         (() => {
           const userRole = getUserRole(authData);
-          
+
           if (userRole === 'admin') {
             if (currentView === 'register') {
               return (
-                <Register 
-                  authData={authData} 
+                <Register
+                  authData={authData}
+                  userToEdit={selectedUser}
                   onBackToLogin={handleBackToDashboard}
                   isAdminView={true}
                 />
               );
             }
+
+            if (currentView === 'user-stats') {
+              return (
+                <UserStats
+                  authData={authData}
+                  users={userStatsData}
+                  onBack={handleBackToDashboard}
+                  onEdit={(user) => handleNavigateToRegister(user)}
+                />
+              );
+            }
+
             return (
-              <AdminDashboard 
-                authData={authData} 
+              <AdminDashboard
+                authData={authData}
                 onLogout={handleLogout}
                 onNavigateToRegister={handleNavigateToRegister}
+                onNavigateToUserStats={handleNavigateToUserStats}
               />
             );
           } else {

@@ -1,7 +1,6 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useRef } from "react";
 // import bcrypt from "bcryptjs";
 import "./Register.css";
-import { useRef } from "react";
 import extraImg1 from "../assets/logo-zanzibar.png";
 import extraImg2 from "../assets/zafiri.png";
 import { API_BASE } from "../config";
@@ -21,7 +20,7 @@ const securityQuestions = [
   "Which city were you born in?",
 ];
 
-export default function Register({ onBackToLogin }) {
+export default function Register({ userToEdit = null, onBackToLogin }) {
   const popupRef = useRef(null);
   const [form, setForm] = useState({
     username: "",
@@ -52,6 +51,30 @@ export default function Register({ onBackToLogin }) {
   const [loading, setLoading] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
+
+  useEffect(() => {
+		if (userToEdit) {
+			setForm({
+				username: userToEdit.username || "",
+				firstName: userToEdit.first_name || userToEdit.firstName || "",
+				secondName: userToEdit.second_name || userToEdit.secondName || "",
+				lastName: userToEdit.last_name || userToEdit.lastName || "",
+				email: userToEdit.email || "",
+				department: userToEdit.department || "",
+				position: userToEdit.position || "",
+				employeeNo: userToEdit.employeeNo || "",
+				phone: userToEdit.phone || "",
+				gender: userToEdit.gender === 'M' ? 'Male' : 'Female',
+				dobDay: userToEdit.dateOfBirth ? userToEdit.dateOfBirth.split('-')[2] : "",
+				dobMonth: userToEdit.dateOfBirth ? userToEdit.dateOfBirth.split('-')[1] : "",
+				dobYear: userToEdit.dateOfBirth ? userToEdit.dateOfBirth.split('-')[0] : "",
+				password: "", // do not prefill password
+			});
+		} else {
+			// clear for new
+			setForm((f) => ({ ...f, password: "" }));
+		}
+	}, [userToEdit]);
 
   const handleChange = (e) => {
     const { name, value, type, checked, files } = e.target;
@@ -105,7 +128,7 @@ export default function Register({ onBackToLogin }) {
     return newErrors;
   };
   // Helper to read csrftoken cookie (in case backend enforces CSRF later)
-  const getCookie = (name) => {
+  const _getCookie = (name) => {
     if (typeof document === 'undefined') return null;
     const value = `; ${document.cookie}`;
     const parts = value.split(`; ${name}=`);
@@ -125,83 +148,51 @@ export default function Register({ onBackToLogin }) {
       setLoading(true);
       
       try {
-        // Prepare data for API (no case mangling of department; send raw)
-        const userData = {
-          username: form.username,
-          password: form.password,
-          email: form.email,
-          firstName: form.firstName,
-          middleName: form.secondName,
-          lastName: form.lastName,
-          employeeNo: form.employeeNo,
-          department: form.department,            // keep as selected
-          position: form.position,
-          phone: form.phone,
-          gender: form.gender ? form.gender.charAt(0) : '', // 'M' or 'F'
-          dateOfBirth: `${form.dobYear}-${String(form.dobMonth).padStart(2, '0')}-${String(form.dobDay).padStart(2, '0')}`,
-          securityQuestion: form.securityQuestion,
-          securityAnswer: form.securityAnswer,
-        };
-        console.log("Submitting registration payload:", userData);
-        const csrfToken = getCookie('csrftoken');
-
-        const response = await fetch(`${API_BASE}/api/create-user/`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            ...(csrfToken ? { 'X-CSRFToken': csrfToken } : {})
-          },
-          credentials: 'include',
-          body: JSON.stringify(userData),
-        });
-
-        let data;
-        const text = await response.text();
-        try {
-          data = text ? JSON.parse(text) : {};
-        } catch {
-          data = { error: 'Invalid server response (non-JSON)', raw: text };
-        }
-        console.log("Registration response:", response.status, data);
-
-        if (response.ok) {
-          setSuccessMessage(data.message || 'User registered successfully.');
-          setSubmitted(true);
-          setShowPopup(true);
-          setForm({
-            username: "",
-            firstName: "",
-            secondName: "",
-            lastName: "",
-            dobDay: "",
-            dobMonth: "",
-            dobYear: "",
-            gender: "",
-            department: "",
-            employeeNo: "",
-            position: "",
-            email: "",
-            countryCode: "+255",
-            phone: "",
-            password: "",
-            confirmPassword: "",
-            securityQuestion: "",
-            securityAnswer: "",
-            passport: null,
-            terms: false,
-            confirm: false,
+        let res;
+        if (userToEdit && (userToEdit.id || userToEdit.pk || userToEdit.username)) {
+          // update user (PATCH)
+          const id = userToEdit.id || userToEdit.pk || userToEdit.username;
+          res = await fetch(`${API_BASE}/api/users/${id}/`, {
+            method: "PATCH",
+            credentials: "include",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              username: form.username,
+              first_name: form.firstName,
+              second_name: form.secondName,
+              last_name: form.lastName,
+              email: form.email,
+              department: form.department,
+              position: form.position,
+              phone: form.phone,
+              gender: form.gender ? form.gender.charAt(0) : '', // 'M' or 'F'
+              dateOfBirth: `${form.dobYear}-${String(form.dobMonth).padStart(2, '0')}-${String(form.dobDay).padStart(2, '0')}`,
+              securityQuestion: form.securityQuestion,
+              securityAnswer: form.securityAnswer,
+              // only send password if set
+              ...(form.password ? { password: form.password } : {}),
+            }),
           });
-          setTimeout(() => {
-            setShowPopup(false);
-            setSuccessMessage('');
-          }, 5000);
         } else {
-          setErrorMessage(data.error || `Registration failed (status ${response.status}).`);
-          setShowPopup(true);
-          setTimeout(() => setShowPopup(false), 6000);
+          // create new user
+          res = await fetch(`${API_BASE}/api/users/`, {
+            method: "POST",
+            credentials: "include",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(form),
+          });
         }
-      } catch (error) {
-        console.error('Registration network error:', error);
+
+        const text = await res.text();
+        let data;
+        try { data = text ? JSON.parse(text) : {}; } catch { data = { detail: text }; }
+
+        if (!res.ok) throw new Error(data?.detail || data?.error || `Server error (${res.status})`);
+
+        // success -> go back to dashboard (App will re-fetch users)
+        if (onBackToLogin) onBackToLogin();
+      } catch (err) {
+        console.error('Registration network error:', err);
         setErrorMessage('Network error. Please check your connection and try again.');
         setShowPopup(true);
         setTimeout(() => setShowPopup(false), 6000);
@@ -213,6 +204,38 @@ export default function Register({ onBackToLogin }) {
 
   return (
     <div className="register-container">
+      {/* Back button with same size as UserStats */}
+      <button
+        type="button"
+        style={{ 
+          position: "fixed",
+          top: "20px",
+          right: "20px",
+          background: "#3b82f6", 
+          color: "white",
+          padding: "0.75rem 1.5rem",
+          borderRadius: "8px",
+          border: "none",
+          fontSize: "0.95rem",
+          fontWeight: "500",
+          cursor: "pointer",
+          zIndex: 1000,
+          boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1)",
+          transition: "all 0.2s ease"
+        }}
+        onClick={onBackToLogin}
+        onMouseEnter={(e) => {
+          e.target.style.background = "#2563eb";
+          e.target.style.transform = "scale(1.02)";
+        }}
+        onMouseLeave={(e) => {
+          e.target.style.background = "#3b82f6";
+          e.target.style.transform = "scale(1)";
+        }}
+      >
+        ← Back
+      </button>
+
       <div className="register-card">
         <div className="register-title-row">
           <h2 className="register-title">REGISTRATION FORM</h2>
@@ -222,6 +245,7 @@ export default function Register({ onBackToLogin }) {
           </div>
         </div>
         <p className="register-subtitle">Zanzabar Fisheries And Marine Research Institute.</p>
+        
         <form onSubmit={handleSubmit} className="register-form">
           <div className="form-row">
             <div className="form-group">
@@ -749,14 +773,7 @@ export default function Register({ onBackToLogin }) {
           >
             Clear Form
           </button>
-          <button
-            type="button"
-            className="submit-button"
-            style={{ background: "#f1f5f9", color: "#2563eb", marginTop: 8 }}
-            onClick={onBackToLogin}
-          >
-            Back
-          </button>
+      
           {submitted && !errorMessage && (
             <div className="success-message">Registration successful!</div>
           )}
