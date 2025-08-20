@@ -2,6 +2,38 @@ import React, { useState, useEffect } from "react";
 import "./Dashboard.css";
 import { API_BASE } from "../config";
 
+// CSRF + API helpers (local)
+const getCSRFToken = () => {
+	const match = document.cookie.match(/(^|;\s*)csrftoken=([^;]+)/);
+	return match ? decodeURIComponent(match[2]) : "";
+};
+
+const apiUpdateUser = async (userId, payload) => {
+	const res = await fetch(`${API_BASE}/api/users/${userId}/update/`, {
+		method: "PUT",
+		credentials: "include",
+		headers: {
+			"Content-Type": "application/json",
+			"X-CSRFToken": getCSRFToken(),
+		},
+		body: JSON.stringify(payload),
+	});
+	if (!res.ok) throw new Error(`Update failed: ${res.status}`);
+	return res.json();
+};
+
+const apiDeleteUser = async (userId) => {
+	const res = await fetch(`${API_BASE}/api/users/${userId}/delete/`, {
+		method: "DELETE",
+		credentials: "include",
+		headers: {
+			"X-CSRFToken": getCSRFToken(),
+		},
+	});
+	if (!res.ok) throw new Error(`Delete failed: ${res.status}`);
+	return true;
+};
+
 export default function AdminDashboard({ authData, onLogout, onNavigateToRegister, onNavigateToUserStats }) {
 	const [users, setUsers] = useState([]);
 	const [_usersError, setUsersError] = useState("");
@@ -48,6 +80,25 @@ export default function AdminDashboard({ authData, onLogout, onNavigateToRegiste
 		setActiveNav(navItem);
 		if (navItem === "Home") {
 			// Stay on current page or refresh dashboard
+		}
+	};
+
+	// Optional: local handlers to use the new API and keep state in sync
+	const _handleUpdateUser = async (userId, updates) => {
+		try {
+			const updated = await apiUpdateUser(userId, updates);
+			setUsers(prev => prev.map(u => (u.id === userId ? { ...u, ...updated } : u)));
+		} catch (e) {
+			setUsersError(e.message || "Failed to update user");
+		}
+	};
+
+	const _handleDeleteUser = async (userId) => {
+		try {
+			await apiDeleteUser(userId);
+			setUsers(prev => prev.filter(u => u.id !== userId));
+		} catch (e) {
+			setUsersError(e.message || "Failed to delete user");
 		}
 	};
 

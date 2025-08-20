@@ -169,17 +169,32 @@ export default function Register({ userToEdit = null, onBackToLogin }) {
               dateOfBirth: `${form.dobYear}-${String(form.dobMonth).padStart(2, '0')}-${String(form.dobDay).padStart(2, '0')}`,
               securityQuestion: form.securityQuestion,
               securityAnswer: form.securityAnswer,
+              employeeNo: form.employeeNo,
               // only send password if set
               ...(form.password ? { password: form.password } : {}),
             }),
           });
         } else {
-          // create new user
-          res = await fetch(`${API_BASE}/api/users/`, {
+          // create new user - remove credentials: "include" since CSRF is disabled
+          res = await fetch(`${API_BASE}/api/create-user/`, {
             method: "POST",
-            credentials: "include",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(form),
+            headers: { "Content-Type": "application/json" }, // Removed credentials: "include"
+            body: JSON.stringify({
+              username: form.username,
+              firstName: form.firstName,
+              secondName: form.secondName,
+              lastName: form.lastName,
+              email: form.email,
+              department: form.department,
+              position: form.position,
+              phone: form.phone,
+              gender: form.gender,
+              dateOfBirth: `${form.dobYear}-${String(form.dobMonth).padStart(2, '0')}-${String(form.dobDay).padStart(2, '0')}`,
+              securityQuestion: form.securityQuestion,
+              securityAnswer: form.securityAnswer,
+              employeeNo: form.employeeNo,
+              password: form.password,
+            }),
           });
         }
 
@@ -189,11 +204,18 @@ export default function Register({ userToEdit = null, onBackToLogin }) {
 
         if (!res.ok) throw new Error(data?.detail || data?.error || `Server error (${res.status})`);
 
-        // success -> go back to dashboard (App will re-fetch users)
-        if (onBackToLogin) onBackToLogin();
+        setSuccessMessage('Registration successful!');
+        setShowPopup(true);
+        
+        // Auto-close popup and navigate back after 2 seconds
+        setTimeout(() => {
+          setShowPopup(false);
+          if (onBackToLogin) onBackToLogin();
+        }, 2000);
+
       } catch (err) {
         console.error('Registration network error:', err);
-        setErrorMessage('Network error. Please check your connection and try again.');
+        setErrorMessage(err.message || 'Network error. Please check your connection and try again.');
         setShowPopup(true);
         setTimeout(() => setShowPopup(false), 6000);
       } finally {
@@ -278,8 +300,7 @@ export default function Register({ userToEdit = null, onBackToLogin }) {
                 name="lastName"
                 value={form.lastName}
                 onChange={handleChange}
-                placeholder="Enter your last nabackground: linear-gradient(135deg, #acb8d8 0%, #7a808b 50%, #1E3A8A 100%);
-  position: fixed;me"
+                placeholder="Enter your last name"
               />
               {errors.lastName && <div className="error-message">{errors.lastName}</div>}
             </div>

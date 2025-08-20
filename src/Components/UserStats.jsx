@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { API_BASE } from "../config";
+import { updateUser, setupCSRF, deleteUser } from '../utils/api';
 
 export default function UserStats({ users: initialUsers = [], onBack }) {
   const [users, setUsers] = useState(Array.isArray(initialUsers) ? initialUsers : []);
@@ -66,34 +66,35 @@ export default function UserStats({ users: initialUsers = [], onBack }) {
     setSaving(true);
     setSaveError("");
     try {
+      // Ensure CSRF token is set up before making the request
+      await setupCSRF();
+      
       const payload = {
         username: editForm.username,
         first_name: editForm.first_name,
         last_name: editForm.last_name,
         email: editForm.email,
         department: editForm.department,
-        ...(editForm.password ? { password: editForm.password } : {}),
+        ...(changePassword && editForm.password ? { password: editForm.password } : {}),
       };
-      const res = await fetch(`${API_BASE}/api/users/${editingId}/`, {
-        method: "PATCH",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-      const text = await res.text();
-      let data;
-      try { data = text ? JSON.parse(text) : {}; } catch { data = { detail: text }; }
-      if (!res.ok) throw new Error(data?.detail || data?.error || `Server error (${res.status})`);
-      // update list with returned data (or local edits if API returns none)
+
+      console.log('Sending payload:', payload); // Debug log
+      console.log('Editing user ID:', editingId); // Debug log
+
+      // Use the updateUser function from api.js
+      const updatedUser = await updateUser(editingId, payload);
+      
+      // Update the users state with the returned data
       setUsers((prev) =>
         prev.map((u) => {
           const uid = u.id || u.pk || u.username;
           if (uid === editingId) {
-            return { ...u, ...data, ...payload, password: undefined };
+            return { ...u, ...updatedUser, ...payload, password: undefined };
           }
           return u;
         })
       );
+      
       cancelEdit();
     } catch (err) {
       console.error("Save failed:", err);
@@ -109,15 +110,12 @@ export default function UserStats({ users: initialUsers = [], onBack }) {
     if (!window.confirm(`Delete user "${user.full_name || user.username}"?`)) return;
     setLoadingDelete(true);
     try {
-      const res = await fetch(`${API_BASE}/api/users/${id}/`, {
-        method: "DELETE",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-      });
-      if (!res.ok) {
-        const txt = await res.text();
-        throw new Error(txt || `Server error (${res.status})`);
-      }
+      // Ensure CSRF token is set up before making the request
+      await setupCSRF();
+      
+      // Use the deleteUser function from api.js
+      await deleteUser(id);
+      
       setUsers((prev) => prev.filter((u) => (u.id || u.pk || u.username) !== id));
       // cancel edit if deleted user was being edited
       if (editingId === id) cancelEdit();
@@ -221,36 +219,35 @@ export default function UserStats({ users: initialUsers = [], onBack }) {
         overflowY: "auto",
         margin: 0,
         padding: 0,
-        display: "flex",            // changed: make column flow so header scrolls with content
+        display: "flex",
         flexDirection: "column"
       }}>
         <header className="dashboard-header" style={{ 
-          padding: "0.75rem 1.5rem", // reduced padding
+          padding: "0.75rem 1.5rem",
           borderBottom: "1px solid #e2e8f0",
           background: "white",
-          position: "static",        // changed: remove fixed/relative so header scrolls away
+          position: "static",
           width: "100%",
-          boxShadow: "none",        // optional: remove shadow to avoid appearing above content
+          boxShadow: "none",
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between"
         }}>
           <div style={{ display: "flex", alignItems: "center", gap: "12px", width: "100%" }}>
             <h1 style={{ 
-              fontSize: "1.8rem",    // smaller title to fit header
+              fontSize: "1.8rem",
               fontWeight: "700", 
               color: "#1e293b",
               margin: 0
             }}>
               User Statistics
             </h1>
-            {/* ...other header elements on left if any... */}
             <div style={{ marginLeft: "auto" }}>
               <button 
                 className="card-btn" 
                 onClick={onBack}
                 style={{
-                  padding: "0.25rem 0.5rem",  // much smaller back button
+                  padding: "0.25rem 0.5rem",
                   background: "#5c8ef4ff",
                   color: "white",
                   border: "none",
@@ -275,9 +272,9 @@ export default function UserStats({ users: initialUsers = [], onBack }) {
         </header>
 
         <main className="dashboard-main" style={{ 
-          padding: "1.5rem 2rem",     // reduce main padding a bit
+          padding: "1.5rem 2rem",
           width: "100%",
-          flex: "1 1 auto",           // allow main to grow and be the scrollable area inside the fixed column
+          flex: "1 1 auto",
           boxSizing: "border-box"
         }}>
           <div style={{ width: "100%", margin: 0, padding: 0 }}>
@@ -286,13 +283,13 @@ export default function UserStats({ users: initialUsers = [], onBack }) {
                 background: "white",
                 borderRadius: "16px",
                 padding: "2rem",
-                boxShadow: "0 6px 30px rgba(15,23,42,0.06)", // stronger shadow
-                border: "1px solid #e6eef8" // slightly warmer border
+                boxShadow: "0 6px 30px rgba(15,23,42,0.06)",
+                border: "1px solid #e6eef8"
               }}>
                 <h3 style={{ 
-                  fontSize: "1.9rem",    // slightly larger
+                  fontSize: "1.9rem",
                   fontWeight: "800", 
-                  color: "#0f172a",      // darker heading
+                  color: "#0f172a",
                   marginBottom: "1.5rem",
                   display: "flex",
                   alignItems: "center",
@@ -309,7 +306,7 @@ export default function UserStats({ users: initialUsers = [], onBack }) {
                       color: "white",
                       fontSize: "1.2rem",
                       fontWeight: 700,
-                      boxShadow: "0 12px 30px rgba(30,64,175,0.25)", // stronger shadow
+                      boxShadow: "0 12px 30px rgba(30,64,175,0.25)",
                       transition: "all 0.25s ease",
                       cursor: "pointer"
                     }}
@@ -350,7 +347,7 @@ export default function UserStats({ users: initialUsers = [], onBack }) {
                       borderRadius: "18px",
                       padding: "3rem",
                       marginBottom: "1.5rem",
-                      boxShadow: "0 18px 50px rgba(2,6,23,0.12)", // stronger, more visible shadow
+                      boxShadow: "0 18px 50px rgba(2,6,23,0.12)",
                       transition: "all 0.3s ease"
                     }}
                     onMouseEnter={(e) => {
@@ -364,9 +361,9 @@ export default function UserStats({ users: initialUsers = [], onBack }) {
                       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 24 }}>
                         <div style={{ flex: 1 }}>
                           <div className="user-name" style={{ 
-                            fontSize: "2.4rem",            // larger name
+                            fontSize: "2.4rem",
                             fontWeight: "900", 
-                            color: "#0b1220",              // very dark for high contrast
+                            color: "#0b1220",
                             marginBottom: "0.5rem"
                           }}>
                             {u.full_name || `${u.first_name || ""} ${u.last_name || ""}` || u.username}
@@ -374,12 +371,12 @@ export default function UserStats({ users: initialUsers = [], onBack }) {
                           <div className="user-dept" style={{
                             fontSize: "1.35rem",
                             color: "#1e40af",
-                            fontWeight: 700,               // slightly less heavy
+                            fontWeight: 700,
                             marginBottom: "0.5rem"
                           }}>
                             {u.department || "Unknown"}
                           </div>
-                          <div style={{ fontSize: "1.15rem", color: "#0f172a", fontWeight: "600" }}>{u.email || ""}</div>  {/* larger email, darker */}
+                          <div style={{ fontSize: "1.15rem", color: "#0f172a", fontWeight: "600" }}>{u.email || ""}</div>
                         </div>
 
                         <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
@@ -475,11 +472,10 @@ export default function UserStats({ users: initialUsers = [], onBack }) {
                             gap: "1.5rem",
                             padding: "2.25rem",
                             borderRadius: "14px",
-                            background: "#ffffff", // solid white for clarity
-                            border: "2px solid #dbeafe", // subtle blue border
+                            background: "#ffffff",
+                            border: "2px solid #dbeafe",
                             boxShadow: "0 8px 30px rgba(15,23,42,0.04)"
                           }}>
-                            {/* Form fields with improved styling */}
                             {[
                               { name: "username", label: "Username" },
                               { name: "email", label: "Email" },
@@ -490,7 +486,7 @@ export default function UserStats({ users: initialUsers = [], onBack }) {
                               <div key={name}>
                                 <label className="login-label" style={{ 
                                   display: "block", 
-                                  fontSize: "1.5rem",      // increased label size for visibility
+                                  fontSize: "1.5rem",
                                   fontWeight: 700,
                                   color: "#0b1220",
                                   marginBottom: "0.75rem",
@@ -506,9 +502,9 @@ export default function UserStats({ users: initialUsers = [], onBack }) {
                                   onChange={handleEditChange} 
                                   style={{ 
                                     width: "100%",
-                                    height: "4.75rem",        // taller inputs for easier editing
+                                    height: "4.75rem",
                                     padding: "0 1rem", 
-                                    fontSize: "1.375rem",     // larger input text
+                                    fontSize: "1.375rem",
                                     borderRadius: "12px",
                                     border: "2px solid #c7ddff",
                                     background: "#ffffff",
@@ -528,7 +524,6 @@ export default function UserStats({ users: initialUsers = [], onBack }) {
                                </div>
                              ))}
 
-                            {/* Change password toggle with enhanced styling */}
                             <div style={{ 
                               gridColumn: "1 / -1", 
                               display: "flex", 
@@ -556,7 +551,7 @@ export default function UserStats({ users: initialUsers = [], onBack }) {
                               <label 
                                 htmlFor={`chgpwd-${uid}`} 
                                 style={{ 
-                                  fontSize: "1.5rem",     // larger label for change password
+                                  fontSize: "1.5rem",
                                   fontWeight: 700, 
                                   color: "#1e293b",
                                   cursor: "pointer",
@@ -569,12 +564,11 @@ export default function UserStats({ users: initialUsers = [], onBack }) {
                               </label>
                             </div>
 
-                            {/* Password input with enhanced styling */}
                             {changePassword && (
                               <div style={{ gridColumn: "1 / -1" }}>
                                 <label className="login-label" style={{ 
                                   display: "block", 
-                                  fontSize: "1.25rem",    // slightly larger password label
+                                  fontSize: "1.25rem",
                                   fontWeight: 700,
                                   color: "#374151",
                                   marginBottom: "0.5rem",
@@ -592,9 +586,9 @@ export default function UserStats({ users: initialUsers = [], onBack }) {
                                   placeholder="Enter new password"
                                   style={{ 
                                     width: "100%",
-                                    height: "4.75rem",    // taller password input
+                                    height: "4.75rem",
                                     padding: "0 1rem", 
-                                    fontSize: "1.375rem", // larger text
+                                    fontSize: "1.375rem",
                                     borderRadius: "12px",
                                     border: "2px solid #c7ddff",
                                     background: "#ffffff",
@@ -653,8 +647,8 @@ export default function UserStats({ users: initialUsers = [], onBack }) {
                               <div key={index}>
                                 <label className="login-label" style={{ 
                                   display: "block", 
-                                  fontSize: "1.125rem",   // slightly reduced label size
-                                  fontWeight: 600,        // less bold
+                                  fontSize: "1.125rem",
+                                  fontWeight: 600,
                                   color: "#0b1220",
                                   marginBottom: "0.5rem",
                                   alignItems: "center",
@@ -675,7 +669,7 @@ export default function UserStats({ users: initialUsers = [], onBack }) {
                                     border: "2px solid #e6eef8",
                                     background: "#ffffff",
                                     color: "#0b1220",
-                                    fontWeight: 400,        // regular weight for values
+                                    fontWeight: 400,
                                     opacity: 1
                                   }}
                                 />
