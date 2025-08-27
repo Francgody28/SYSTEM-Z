@@ -13,14 +13,31 @@ html, body, #root {
   background: #f4f6f8;
   color: #1f2937;
   overflow-x: hidden;
+  font-size: 20px; /* Increased base font size */
+}
+
+/* Optionally, increase font size for headings and buttons for better emphasis */
+h1, .homepage-header .logo {
+  font-size: 2.5rem;
+}
+
+h2 {
+  font-size: 2rem;
+}
+
+h3 {
+  font-size: 1.4rem;
+}
+
+.signup-btn, .cta-btn {
+  font-size: 1.15rem;
 }
 
 /* Full-width section backgrounds */
 .hero-section,
 .features-section,
 .mission-vision,
-.homepage-footer,
-.homepage-header {
+.homepage-footer {
   width: 100%;
 }
 
@@ -33,6 +50,7 @@ html, body, #root {
 
 /* Header - Full width */
 .homepage-header {
+  width: 100%;
   padding: 15px 30px;
   display: flex;
   justify-content: space-between;
@@ -69,51 +87,92 @@ html, body, #root {
 .hero-section {
   background: linear-gradient(to right, #4f46e5, #3b82f6);
   color: white;
-  padding: 80px 20px;
+  padding: 0;
   text-align: center;
-}
-
-.hero-section h1 {
-  font-size: 2.5rem;
-  margin-bottom: 20px;
-}
-
-.hero-section p {
-  font-size: 1.2rem;
-}
-
-/* Carousel */
-.carousel {
   position: relative;
+  min-height: 1000px;
+  display: flex;
+  align-items: stretch;
+  justify-content: center;
+  overflow: hidden;
+}
+
+/* Make carousel fill the hero section */
+.carousel {
+  position: absolute;
+  top: 0;
+  left: 0;
   width: 100%;
   height: 100%;
-  max-width: auto;
-  min-width: auto;
-  max-height: auto;
-  height: 300px;
-  margin: 0 auto 30px;
+  min-height: auto;
+  z-index: 1;
+  margin: 0;
+  border-radius: 0;
+  box-shadow: none;
   overflow: hidden;
-  border-radius: 15px;
-  box-shadow: 0 10px 30px rgba(0,0,0,0.2);
 }
 
 .carousel-image {
   width: 100%;
   height: 100%;
-  max-width: 100%;
-  min-width: 100%;
-  max-height: 100%;
   object-fit: cover;
-  position: relative;
+  position: absolute;
   top: 0;
   left: 0;
   opacity: 0;
-  transition: opacity 1.2s ease-in-out;
-  border-radius: 15px;
+  transition: opacity 3s ease-in-out;
+  border-radius: 0;
 }
 
 .carousel-image.active {
   opacity: 1;
+}
+
+/* Overlay hero text on top of images */
+.hero-text {
+  position: relative;
+  z-index: 1;
+  max-width: 1000px;
+  margin: auto;
+  padding: 60px 30px;
+  background: rgba(34, 51, 84, 0.45);
+  border-radius: 18px;
+  box-shadow: 0 4px 24px rgba(0,0,0,0.10);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.hero-section h1 {
+  font-size: 2.5rem;
+  margin-bottom: 20px;
+  color: #fff;
+  text-shadow: 0 2px 8px rgba(0,0,0,0.13);
+}
+
+.hero-section p {
+  font-size: 1.2rem;
+  color: #e0e7ef;
+  margin-bottom: 24px;
+  text-shadow: 0 1px 4px rgba(0,0,0,0.10);
+}
+
+.cta-btn {
+  padding: 12px 32px;
+  font-size: 1.1rem;
+  background: linear-gradient(90deg, #0ea5e9, #3b82f6);
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(59,130,246,0.13);
+  transition: background 0.2s, transform 0.1s;
+}
+
+.cta-btn:hover {
+  background: linear-gradient(90deg, #3b82f6, #0ea5e9);
+  transform: translateY(-2px) scale(1.03);
 }
 
 /* Features Section */
@@ -220,7 +279,7 @@ html, body, #root {
 
 /* Footer */
 .homepage-footer {
-  background: #4d9cb2;
+  background: #08708f;
   color: white;
   padding: 20px 0;
   text-align: center;
@@ -233,8 +292,18 @@ html, body, #root {
 
 /* Responsive adjustments */
 @media (max-width: 768px) {
+  .hero-section {
+    min-height: 260px;
+  }
+  .carousel {
+    min-height: 260px;
+  }
+  .hero-text {
+    padding: 30px 10px;
+    max-width: 95vw;
+  }
   .hero-section h1 {
-    font-size: 2rem;
+    font-size: 1.5rem;
   }
   .features-section h2,
   .mission-vision h2 {
@@ -244,9 +313,6 @@ html, body, #root {
   .features-section p,
   .mission-vision p {
     font-size: 1rem;
-  }
-  .carousel {
-    height: 250px;
   }
   .mission-vision {
     grid-template-columns: 1fr;
