@@ -1,29 +1,95 @@
-import React, { useState } from "react";
-import { User, Lock } from "lucide-react"; // ✅ import icons
+import React, { useState, useEffect } from "react";
+import { User, Lock } from "lucide-react";
 import "./Login.css";
 import logo from "../assets/zafiri.png";
+import kikao from "../assets/kikao3.jpg";
+import lab from "../assets/lab.jpg";
+import event from "../assets/event.jpg";
+import building from "../assets/zafir-building.jpg";
+
+const carouselImages = [kikao, lab, event, building];
 
 export default function Login() {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
-  const [loading] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [bgIndex, setBgIndex] = useState(0);
 
-  const handleSubmit = (e) => {
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setBgIndex((prev) => (prev + 1) % carouselImages.length);
+    }, 3500);
+    return () => clearInterval(interval);
+  }, []);
+
+  // submit to backend and redirect based on returned "redirect" or position
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    setError("Login is disabled in static mode.");
+    if (!username || !password) {
+      setError("Username and password are required");
+      return;
+    }
+
+    setLoading(true);
+    setError("");
+
+    try {
+      // System A backend (port 8000)
+      const response = await fetch("http://localhost:8000/api/login/", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username, password }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        // Store tokens in System A
+        localStorage.setItem("authToken", data.token);
+        localStorage.setItem("refreshToken", data.refresh);
+        localStorage.setItem("username", data.username);
+
+        // Redirect to System B with SSO token
+        if (data.redirect_to_system_b && data.sso_token) {
+          const redirectUrl = data.redirect; // e.g., "http://localhost:2809/planning-dashboard"
+          const ssoToken = data.sso_token;
+
+          // Create SSO URL
+          const separator = redirectUrl.includes("?") ? "&" : "?";
+          const ssoUrl = `${redirectUrl}${separator}sso_token=${encodeURIComponent(
+            ssoToken
+          )}`;
+
+          // Redirect to System B
+          window.location.href = ssoUrl;
+        } else {
+          // Fallback redirect
+          window.location.href = data.redirect || "/dashboard";
+        }
+      } else {
+        setError(data.detail || "Login failed");
+      }
+    } catch {
+      setError("Network error. Please try again.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
     <div className="login-page-container">
       {/* Left Side - Logo and Branding */}
-      <div className="login-left-side">
-        <div className="logo-section">
-          <img src={logo} alt="ZAFIRI Logo" className="login-logo-image" />
-          <h1 className="system-title">SERIKALI YA MAPINDUZI YA ZANZIBAR</h1>
-        </div>
-
-        <div className="branding-content">
+      <div
+        className="login-left-side"
+        style={{
+          backgroundImage: `url(${carouselImages[bgIndex]})`,
+          backgroundSize: "cover",
+          backgroundPosition: "center",
+          transition: "background-image 1s ease",
+        }}
+      >
+        <div className="hero-text">
           <h3 className="welcome-text">ZAFIRI-PORTAL</h3>
           <p className="system-description">
             Secure Government Communication Platform
@@ -35,8 +101,9 @@ export default function Login() {
       <div className="login-right-side">
         <div className="login-form-container">
           <div className="login-header">
+            <img src={logo} alt="ZAFIRI Logo" className="login-logo-image" />
             <h2 className="login-title">LOGIN</h2>
-            <p className="login-subtitle">Access your government portal</p>
+            <p className="login-subtitle">Access institute internal portal</p>
           </div>
 
           <form onSubmit={handleSubmit} className="login-form">
@@ -93,3 +160,12 @@ export default function Login() {
     </div>
   );
 }
+
+// Example for authenticated fetch:
+const token = localStorage.getItem("authToken");
+fetch("/api/protected/", {
+  headers: {
+    Authorization: `Bearer ${token}`,
+    "Content-Type": "application/json",
+  },
+});

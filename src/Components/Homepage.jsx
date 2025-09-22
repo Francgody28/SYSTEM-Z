@@ -5,8 +5,9 @@ import img1 from "../assets/kikao2.jpg";
 import img2 from "../assets/zafir-building.jpg";
 import img3 from "../assets/kikao1.jpg";
 import img4 from "../assets/meeting.jpg";
+import img5 from "../assets/kikao.jpg";
 
-const images = [img1, img2, img3, img4];
+const images = [img1, img2, img3, img4, img5];
 
 export default function Homepage() {
   const [current, setCurrent] = useState(0);
