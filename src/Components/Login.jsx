@@ -23,7 +23,6 @@ export default function Login() {
     return () => clearInterval(interval);
   }, []);
 
-  // submit to backend and redirect based on returned "redirect" or position
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!username || !password) {
@@ -50,27 +49,18 @@ export default function Login() {
         localStorage.setItem("refreshToken", data.refresh);
         localStorage.setItem("username", data.username);
 
-        // Redirect to System B with SSO token
-        if (data.redirect_to_system_b && data.sso_token) {
-          const redirectUrl = data.redirect; // e.g., "http://localhost:2809/planning-dashboard"
-          const ssoToken = data.sso_token;
-
-          // Create SSO URL
-          const separator = redirectUrl.includes("?") ? "&" : "?";
-          const ssoUrl = `${redirectUrl}${separator}sso_token=${encodeURIComponent(
-            ssoToken
-          )}`;
-
-          // Redirect to System B
-          window.location.href = ssoUrl;
-        } else {
-          // Fallback redirect
-          window.location.href = data.redirect || "/dashboard";
-        }
+        // Direct redirect to the URL (which includes auto-login for PSMS users)
+        console.log('Redirecting to:', data.redirect);
+        console.log('User position:', data.position);
+        console.log('Redirect to PSMS:', data.redirect_to_psms); // Updated field name
+        
+        window.location.href = data.redirect;
+        
       } else {
         setError(data.detail || "Login failed");
       }
-    } catch {
+    } catch (error) {
+      console.error('Login error:', error);
       setError("Network error. Please try again.");
     } finally {
       setLoading(false);
@@ -161,11 +151,11 @@ export default function Login() {
   );
 }
 
-// Example for authenticated fetch:
-const token = localStorage.getItem("authToken");
-fetch("/api/protected/", {
-  headers: {
-    Authorization: `Bearer ${token}`,
-    "Content-Type": "application/json",
-  },
-});
+// // Example for authenticated fetch:
+// const token = localStorage.getItem("authToken");
+// fetch("/api/protected/", {
+//   headers: {
+//     Authorization: `Bearer ${token}`,
+//     "Content-Type": "application/json",
+//   },
+// });
