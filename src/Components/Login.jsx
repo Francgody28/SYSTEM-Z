@@ -150,12 +150,3 @@ export default function Login() {
     </div>
   );
 }
-
-// // Example for authenticated fetch:
-// const token = localStorage.getItem("authToken");
-// fetch("/api/protected/", {
-//   headers: {
-//     Authorization: `Bearer ${token}`,
-//     "Content-Type": "application/json",
-//   },
-// });
